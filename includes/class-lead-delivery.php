@@ -1,63 +1,77 @@
 
 <?php
 /**
- * Coordinates manual delivery of stored leads to the CRM.
+ * Handles manual delivery requests from the WordPress admin dashboard.
+ *
+ * Responsibilities:
+ * - Verify administrator permissions.
+ * - Validate the request nonce and lead ID.
+ * - Delegate delivery to the retry coordinator.
+ * - Redirect back to the dashboard with a result message.
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class WP_CRM_Bridge_Lead_Delivery {
-
-    public static function handle() {
-
-        // Require administrator capability and a valid action nonce.
+class WP_CRM_Bridge_Lead_Delivery
+{
+    /**
+     * Process a manual "Send to CRM" request.
+     */
+    public static function handle()
+    {
+        // Only administrators can initiate manual deliveries.
         if (!current_user_can('manage_options')) {
             wp_die('You do not have permission to deliver leads.');
         }
 
+        // Convert the submitted lead ID into a positive integer.
         $lead_id = isset($_POST['lead_id'])
             ? absint(wp_unslash($_POST['lead_id']))
             : 0;
 
+        if ($lead_id === 0) {
+            wp_die('Invalid lead ID.');
+        }
+
+        // Verify that the request came from our authorized admin form.
         check_admin_referer('wp_crm_bridge_send_' . $lead_id);
 
+        // Retrieve the lead from the WordPress database.
         $lead = WP_CRM_Bridge_Lead_Repository::find($lead_id);
 
         if (!$lead) {
             wp_die('Lead not found.');
         }
 
-        // Already-delivered leads should not be sent again manually.
+        // Prevent manually resending a successfully delivered lead.
         if ($lead->status === 'delivered') {
             self::redirect('already_delivered');
         }
 
-        $result = WP_CRM_Bridge_CRM_Client::send($lead);
+        // The retry coordinator handles the HTTP request,
+        // attempt tracking, status updates, and retry scheduling.
+        WP_CRM_Bridge_Lead_Retry::process($lead_id);
 
-        if (is_wp_error($result)) {
-            // Keep failed attempts visible for future retry handling.
-            WP_CRM_Bridge_Lead_Repository::update_status(
-                $lead_id,
-                'failed'
-            );
+        // Reload the lead because its status may have changed.
+        $updated_lead = WP_CRM_Bridge_Lead_Repository::find($lead_id);
 
-            self::redirect('failed');
+        if ($updated_lead && $updated_lead->status === 'delivered') {
+            self::redirect('delivered');
         }
 
-        $updated = WP_CRM_Bridge_Lead_Repository::update_status(
-            $lead_id,
-            'delivered'
-        );
-
-        self::redirect($updated ? 'delivered' : 'update_failed');
+        // A failed attempt may already have a retry scheduled.
+        self::redirect('failed');
     }
 
     /**
-     * Return to the admin dashboard without exposing CRM secrets.
+     * Return to the dashboard without exposing CRM credentials.
+     *
+     * @param string $result Result identifier for the admin notice.
      */
-    private static function redirect($result) {
+    private static function redirect($result)
+    {
         $url = add_query_arg(
             [
                 'page' => 'wp-crm-bridge',

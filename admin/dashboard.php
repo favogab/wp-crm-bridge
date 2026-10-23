@@ -21,7 +21,7 @@ function wp_crm_bridge_render_dashboard()
     // Retrieve the latest ten leads for the admin table.
     $recent_leads = WP_CRM_Bridge_Lead_Repository::get_recent(10);
 
-    
+
     // Check whether both CRM configuration values exist.
     // Configured does not necessarily mean the CRM is online.
     $crm_configured =
@@ -29,7 +29,6 @@ function wp_crm_bridge_render_dashboard()
         defined('WP_CRM_BRIDGE_API_URL') &&
         WP_CRM_BRIDGE_API_KEY !== '' &&
         WP_CRM_BRIDGE_API_URL !== '';
-
 
 ?>
     <div class="wrap">
@@ -39,13 +38,13 @@ function wp_crm_bridge_render_dashboard()
 
         <hr>
 
-
         <?php
-        // Show a generic result after returning from the delivery action.
+        // Read the delivery result from the redirect URL.
         $result = isset($_GET['delivery_result'])
             ? sanitize_key(wp_unslash($_GET['delivery_result']))
             : '';
 
+        // Messages shown after a manual delivery attempt.
         $messages = [
             'delivered' => 'Lead delivered to the CRM successfully.',
             'failed' => 'CRM delivery failed. The lead can be retried.',
@@ -53,13 +52,23 @@ function wp_crm_bridge_render_dashboard()
             'update_failed' => 'CRM accepted the lead, but the local status update failed.',
         ];
 
-        if (isset($messages[$result])) :
         ?>
-            <div class="notice notice-info">
+
+        <?php if (isset($messages[$result])) : ?>
+
+            <div class="notice notice-info is-dismissible">
                 <p><?php echo esc_html($messages[$result]); ?></p>
             </div>
-        <?php endif; ?>
 
+            <script>
+                // Remove the result parameter from the URL after displaying the notice.
+                // This prevents the same notice appearing after a refresh.
+                const url = new URL(window.location.href);
+                url.searchParams.delete('delivery_result');
+                window.history.replaceState({}, '', url.toString());
+            </script>
+
+        <?php endif; ?>
 
         <h2>Integration Overview</h2>
 
@@ -129,18 +138,58 @@ function wp_crm_bridge_render_dashboard()
                     <?php foreach ($recent_leads as $lead) : ?>
                         <tr>
                             <td><?php echo esc_html($position++); ?></td>
-                            <?php $lead_reference = sprintf('CRM-%06d', (int) $lead->id); ?>
-                            <td><?php echo esc_html($lead_reference); ?></td>
+                            <?php $reference = sprintf('WP-LOCAL-CRM-%06d', (int) $lead->id); ?>
+                            <td><?php echo esc_html($reference); ?></td>
                             <td><?php echo esc_html($lead->name); ?></td>
                             <td><?php echo esc_html($lead->email); ?></td>
-                            <td><?php echo esc_html($lead->status); ?></td>
+                            <?php
+                            // Translate internal database states into useful admin labels.
+                            // A failed attempt can still be waiting for an automatic retry.
+                            if ($lead->status === 'delivered') {
+                                $display_status = 'Delivered';
+                            } elseif (
+                                $lead->status === 'failed' &&
+                                !empty($lead->next_retry_at)
+                            ) {
+                                $display_status = 'Retry Scheduled';
+                            } elseif ($lead->status === 'failed') {
+                                $display_status = 'Failed — Needs Attention';
+                            } else {
+                                $display_status = 'Pending';
+                            }
+                            ?>
+
+                            <td><?php echo esc_html($display_status); ?></td>
+
                             <td><?php echo esc_html($lead->created_at); ?></td>
+
 
                             <td>
                                 <?php if ($lead->status === 'delivered') : ?>
+
+                                    <?php // This lead has already reached the CRM. 
+                                    ?>
                                     Delivered
+
+                                <?php elseif (
+                                    $lead->status === 'failed' &&
+                                    !empty($lead->next_retry_at)
+                                ) : ?>
+
+                                    <?php
+                                    // An automatic retry is already scheduled.
+                                    // Hide the manual button to avoid competing deliveries.
+                                    ?>
+                                    Awaiting Retry
+
                                 <?php else : ?>
-                                    <form method="post"
+
+                                    <?php
+                                    // Show manual delivery for pending leads and
+                                    // failed leads without a scheduled retry.
+                                    ?>
+                                    <form
+                                        method="post"
                                         action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
 
                                         <input
@@ -154,16 +203,26 @@ function wp_crm_bridge_render_dashboard()
                                             value="<?php echo esc_attr($lead->id); ?>">
 
                                         <?php
-                                        // Bind the nonce to this specific lead's delivery action.
+                                        // Require a nonce specific to this lead.
                                         wp_nonce_field('wp_crm_bridge_send_' . $lead->id);
                                         ?>
 
                                         <button type="submit" class="button button-secondary">
-                                            Send to CRM
+                                            <?php
+                                            // Make the action clearer when a previous delivery failed.
+                                            echo esc_html(
+                                                $lead->status === 'failed'
+                                                    ? 'Retry Delivery'
+                                                    : 'Send to CRM'
+                                            );
+                                            ?>
                                         </button>
+
                                     </form>
+
                                 <?php endif; ?>
                             </td>
+
 
                         </tr>
                     <?php endforeach; ?>
@@ -171,8 +230,6 @@ function wp_crm_bridge_render_dashboard()
                 <?php endif; ?>
             </tbody>
         </table>
-
-
 
         <?php
         // Temporary local development helper for authenticated API tests.

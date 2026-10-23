@@ -94,7 +94,7 @@ class WP_CRM_Bridge_Lead_Repository
 
         return $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT id, name, email, status, created_at
+                "SELECT id, name, email, status, attempts, next_retry_at, created_at
              FROM {$table_name}
              ORDER BY id DESC
              LIMIT %d",
@@ -150,5 +150,74 @@ class WP_CRM_Bridge_Lead_Repository
         // wpdb::update() returns false on error; zero affected rows
         // does not necessarily indicate a database failure.
         return $result !== false;
+    }
+
+
+    /**
+     * Record one delivery attempt.
+     *
+     * Returns the new attempt count or false on database failure.
+     */
+    public static function increment_attempts($lead_id)
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'crm_bridge_leads';
+
+        // Reject invalid lead identifiers.
+        $lead_id = absint($lead_id);
+
+        if ($lead_id === 0) {
+            return false;
+        }
+
+        // Increment atomically so two workers do not overwrite
+        // the same attempt count.
+        $updated = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$table_name}
+             SET attempts = attempts + 1,
+                 last_attempt_at = %s,
+                 next_retry_at = NULL
+             WHERE id = %d",
+                current_time('mysql', true),
+                $lead_id
+            )
+        );
+
+        if ($updated !== 1) {
+            return false;
+        }
+
+        $attempts = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT attempts FROM {$table_name} WHERE id = %d",
+                $lead_id
+            )
+        );
+
+        return (int) $attempts;
+    }
+
+    /**
+     * Save the next scheduled retry time.
+     */
+    public static function set_next_retry($lead_id, $timestamp)
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'crm_bridge_leads';
+
+        return $wpdb->update(
+            $table_name,
+            [
+                'next_retry_at' => gmdate('Y-m-d H:i:s', $timestamp),
+            ],
+            [
+                'id' => $lead_id,
+            ],
+            ['%s'],
+            ['%d']
+        ) !== false;
     }
 }

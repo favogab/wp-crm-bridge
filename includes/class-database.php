@@ -28,6 +28,9 @@ class WP_CRM_Bridge_Database {
             created_at datetime NOT NULL,
             PRIMARY KEY  (id),
             KEY status (status)
+            attempts int unsigned NOT NULL DEFAULT 0,
+            last_attempt_at datetime DEFAULT NULL,
+            next_retry_at datetime DEFAULT NULL,
         ) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';

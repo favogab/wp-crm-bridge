@@ -48,6 +48,16 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-crm-client.php';
 // Load the manual delivery coordinator.
 require_once plugin_dir_path(__FILE__) . 'includes/class-lead-delivery.php';
 
+// Load the retry coordinator.
+require_once plugin_dir_path(__FILE__) . 'includes/class-lead-retry.php';
+
+// WP-Cron invokes this hook when a scheduled retry becomes due.
+add_action(
+    'wp_crm_bridge_retry_lead',
+    ['WP_CRM_Bridge_Lead_Retry', 'process']
+);
+
+
 // Handle authenticated delivery form submissions.
 add_action(
     'admin_post_wp_crm_bridge_send_lead',

@@ -1,5 +1,5 @@
-
 <?php
+
 /**
  * Handles incoming lead submissions through the WordPress REST API.
  *
@@ -110,15 +110,29 @@ class WP_CRM_Bridge_Lead_Handler
             );
         }
 
-        // No lead is saved yet; this confirms validation only.
+
+        // Save the lead only after all validation checks have passed.
+        $lead_id = WP_CRM_Bridge_Lead_Repository::insert(
+            $name,
+            $email,
+            $message
+        );
+
+        // Stop if the database operation failed.
+        if (is_wp_error($lead_id)) {
+            return new WP_Error(
+                'database_error',
+                'Unable to save lead.',
+                ['status' => 500]
+            );
+        }
+
+        // Return the generated ID without exposing customer information.
         return new WP_REST_Response([
             'success' => true,
-            'message' => 'Lead validated successfully.',
-            'lead' => [
-                'name' => $name,
-                'email' => $email,
-                'message' => $message
-            ]
-        ], 200);
+            'message' => 'Lead saved successfully.',
+            'lead_id' => $lead_id,
+            'status'  => 'pending'
+        ], 201);
     }
 }

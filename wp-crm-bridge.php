@@ -30,11 +30,26 @@ function wp_crm_bridge_register_menu() {
     );
 }
 
+// Load the database schema manager.
+require_once plugin_dir_path(__FILE__) . 'includes/class-database.php';
+
+// Load the repository used to persist validated leads.
+require_once plugin_dir_path(__FILE__) . 'includes/class-lead-repository.php';
+
 // Load the admin dashboard rendering function.
 require_once plugin_dir_path(__FILE__) . 'admin/dashboard.php';
 
 // Load the REST API lead handler.
 require_once plugin_dir_path(__FILE__) . 'includes/class-lead-handler.php';
+
+
+//Create the leads table when the plugin is activated.
+// Activation hooks run when WordPress activates the plugin, not on every page request.
+register_activation_hook(
+    __FILE__,
+    ['WP_CRM_Bridge_Database', 'create_tables']
+);
+
 
 // Register the admin menu during WordPress initialization.
 add_action('admin_menu', 'wp_crm_bridge_register_menu');

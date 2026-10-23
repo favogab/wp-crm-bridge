@@ -42,6 +42,18 @@ require_once plugin_dir_path(__FILE__) . 'admin/dashboard.php';
 // Load the REST API lead handler.
 require_once plugin_dir_path(__FILE__) . 'includes/class-lead-handler.php';
 
+// Load the authenticated CRM HTTP client.
+require_once plugin_dir_path(__FILE__) . 'includes/class-crm-client.php';
+
+// Load the manual delivery coordinator.
+require_once plugin_dir_path(__FILE__) . 'includes/class-lead-delivery.php';
+
+// Handle authenticated delivery form submissions.
+add_action(
+    'admin_post_wp_crm_bridge_send_lead',
+    ['WP_CRM_Bridge_Lead_Delivery', 'handle']
+);
+
 
 //Create the leads table when the plugin is activated.
 // Activation hooks run when WordPress activates the plugin, not on every page request.

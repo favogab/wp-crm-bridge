@@ -102,4 +102,53 @@ class WP_CRM_Bridge_Lead_Repository
             )
         );
     }
+
+
+    /**
+     * Find a lead by its permanent database ID.
+     *
+     * @return object|null
+     */
+    public static function find($id)
+    {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . 'crm_bridge_leads';
+
+        return $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $id
+            )
+        );
+    }
+
+    /**
+     * Update the delivery status of an existing lead.
+     *
+     * @return bool True if the database operation succeeded.
+     */
+    public static function update_status($id, $status)
+    {
+        global $wpdb;
+
+        // Only recognized delivery states may be stored.
+        if (!in_array($status, ['pending', 'delivered', 'failed'], true)) {
+            return false;
+        }
+
+        $table_name = $wpdb->prefix . 'crm_bridge_leads';
+
+        $result = $wpdb->update(
+            $table_name,
+            ['status' => $status],
+            ['id' => $id],
+            ['%s'],
+            ['%d']
+        );
+
+        // wpdb::update() returns false on error; zero affected rows
+        // does not necessarily indicate a database failure.
+        return $result !== false;
+    }
 }

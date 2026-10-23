@@ -10,3 +10,20 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+
+function wp_crm_bridge_register_menu() {
+    add_menu_page(
+        'WP CRM Bridge',
+        'CRM Bridge',
+        'manage_options',
+        'wp-crm-bridge',
+        'wp_crm_bridge_render_dashboard',
+        'dashicons-rest-api',
+        30
+    );
+}
+
+require_once plugin_dir_path(__FILE__) . 'admin/dashboard.php';
+
+add_action('admin_menu', 'wp_crm_bridge_register_menu');

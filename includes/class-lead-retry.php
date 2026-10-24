@@ -1,5 +1,5 @@
-
 <?php
+
 /**
  * Coordinates scheduled CRM delivery retries.
  */
@@ -40,6 +40,25 @@ class WP_CRM_Bridge_Lead_Retry
         }
 
         $result = WP_CRM_Bridge_CRM_Client::send($lead);
+
+        // Record the outcome of this delivery attempt.
+        $log_result = is_wp_error($result) ? 'failed' : 'delivered';
+
+        $error_code = is_wp_error($result)
+            ? $result->get_error_code()
+            : null;
+
+        $log_id = WP_CRM_Bridge_Lead_Log_Repository::insert(
+            $lead_id,
+            $attempts,
+            $log_result,
+            null,
+            $error_code
+        );
+
+        if (is_wp_error($log_id)) {
+            error_log('WP CRM Bridge: Unable to save delivery log.');
+        }
 
         if (!is_wp_error($result)) {
 

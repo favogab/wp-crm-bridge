@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Sends validated WordPress leads to the external CRM API.

@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Handles manual delivery requests from the WordPress admin dashboard.

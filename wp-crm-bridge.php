@@ -48,6 +48,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-crm-client.php';
 // Load the manual delivery coordinator.
 require_once plugin_dir_path(__FILE__) . 'includes/class-lead-delivery.php';
 
+require_once plugin_dir_path(__FILE__) . 'includes/class-lead-log-repository.php';
+
 // Load the retry coordinator.
 require_once plugin_dir_path(__FILE__) . 'includes/class-lead-retry.php';
 

@@ -50,6 +50,7 @@ function wp_crm_bridge_render_dashboard()
             'failed' => 'CRM delivery failed. The lead can be retried.',
             'already_delivered' => 'This lead was already delivered.',
             'update_failed' => 'CRM accepted the lead, but the local status update failed.',
+            'max_attempts' => 'Maximum delivery attempts reached. Review the failure before retrying.',
         ];
 
         ?>
@@ -230,20 +231,6 @@ function wp_crm_bridge_render_dashboard()
                 <?php endif; ?>
             </tbody>
         </table>
-
-        <?php
-        // Temporary local development helper for authenticated API tests.
-        // Remove this helper before publishing the plugin.
-        $test_nonce = wp_create_nonce('wp_rest');
-        ?>
-
-        <h2>API Development Test</h2>
-
-        <p>Authenticated REST API testing is enabled for this admin page.</p>
-
-        <div
-            id="wp-crm-bridge-test"
-            data-nonce="<?php echo esc_attr($test_nonce); ?>"></div>
 
 
     </div>

@@ -50,6 +50,29 @@ class WP_CRM_Bridge_Lead_Handler
         // Read the JSON request body.
         $data = $request->get_json_params();
 
+        // The request body must be a JSON object.
+        if (!is_array($data)) {
+            return new WP_Error(
+                'invalid_json',
+                'A valid JSON object is required.',
+                ['status' => 400]
+            );
+        }
+
+        // Every required field must exist and contain a string.
+        foreach (['name', 'email', 'message'] as $field) {
+            if (
+                !isset($data[$field]) ||
+                !is_string($data[$field])
+            ) {
+                return new WP_Error(
+                    'invalid_field',
+                    "{$field} must be provided as text.",
+                    ['status' => 400]
+                );
+            }
+        }
+
         // Reject invalid email addresses before normalization.
         // Sanitization alone is not proof that input is valid.
         $raw_email = trim($data['email']);

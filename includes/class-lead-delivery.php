@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Handles manual delivery requests from the WordPress admin dashboard.
  *
@@ -49,6 +50,14 @@ class WP_CRM_Bridge_Lead_Delivery
             self::redirect('already_delivered');
         }
 
+        if (
+            (int) $lead->attempts >=
+            WP_CRM_Bridge_Lead_Retry::MAX_ATTEMPTS
+        ) {
+            self::redirect('max_attempts');
+        }
+
+        
         // The retry coordinator handles the HTTP request,
         // attempt tracking, status updates, and retry scheduling.
         WP_CRM_Bridge_Lead_Retry::process($lead_id);
